@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ViewFinder - Profile</title>
+    <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<header class="main-header">
+    <div class="header-left">
+        <img src="images/viewfinder-logo.png" alt="ViewFinder Logo" class="site-logo" />
+    </div>
+    <div class="nav-links">
+        <a href="homePage.html" class="nav-link">🏠 Home</a>
+        <a href="profile page.html" class="nav-link">👤 Profile</a>
+    </div>
+</header>
+
+
+<main>
+    <div class="profile-container">
+        <aside class="profile-sidebar">
+            <div class="profile-header">
+                <div class="profile-picture"></div>
+                <h2 id="user-full-name">First Name Last Name</h2>
+                <p class="username">@Username</p>
+                <button class="edit-btn" onclick="openModal()">Edit Profile</button>
+                <button class="sign-out-btn" onclick="signOut()">Sign Out</button>
+            </div>
+            <nav class="profile-nav">
+                <ul>
+                    <li><a href="#saved-productions">Saved Productions</a></li>
+                    <li><a href="#recently-watched">Recently Watched</a></li>
+                    <li><a href="#liked-productions">❤️ Liked Productions</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <section class="profile-content">
+            <section id="saved-productions" class="content-section">
+                <h3>Saved Productions</h3>
+                <div class="production-grid"></div>
+            </section>
+
+            <section id="recently-watched" class="content-section">
+                <h3>Recently Watched</h3>
+                <div class="production-grid"></div>
+            </section>
+
+            <section id="liked-productions" class="content-section">
+                <h3>Liked Productions</h3>
+                <div class="production-grid"></div>
+            </section>
+            <section id="recommended-productions" class="content-section">
+                <h3>Recommended For You</h3>
+                <div class="production-grid" id="recommendation-grid">
+                    <!-- Önerilen filmler burada listelenecek -->
+                </div>
+            </section>
+        </section>
+    </div>
+
+    <div id="editModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3>Edit Profile</h3>
+            <label>Full Name:</label>
+            <input type="text" id="editName" placeholder="Your full name"/>
+            <label>Email:</label>
+            <input type="email" id="editEmail" placeholder="example@mail.com"/>
+            <button onclick="saveProfile()">Save</button>
+            <button onclick="closeModal()">Cancel</button>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <p>&copy; 2025 ViewFinder. All rights reserved.</p>
+</footer>
+
+<script>
+    function signOut() {
+      // Clear user session data
+      localStorage.removeItem("user_name");
+      localStorage.removeItem("user_email");
+      localStorage.removeItem("likedMovies");
+      localStorage.removeItem("savedMovies");
+      localStorage.removeItem("recentlyWatched");
+      
+      // Redirect to login page
+      window.location.href = "login.html";
+    }
+
+    function viewDetails(title, image, director, cast, genre, plot) {
+      const movie = { title, image, director, cast, genre, plot };
+      localStorage.setItem("selectedMovie", JSON.stringify(movie));
+      window.location.href = "index.html";
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      // Kullanıcı bilgileri
+      const fullName = localStorage.getItem("user_name") || "First Last";
+      const email = localStorage.getItem("user_email") || "user@example.com";
+      document.getElementById("user-full-name").innerText = fullName;
+      document.querySelector(".username").innerText = "@" + email.split("@")[0];
+
+      // Kaydedilen yapımları göster
+      const saved = JSON.parse(localStorage.getItem("savedMovies")) || [];
+      const savedContainer = document.querySelector("#saved-productions .production-grid");
+      saved.forEach(movie => {
+        const item = createPosterItem(movie);
+        savedContainer.appendChild(item);
+      });
+
+      // Son izlenen yapımları göster
+      const recentlyWatched = JSON.parse(localStorage.getItem("recentlyWatched")) || [];
+      const recentContainer = document.querySelector("#recently-watched .production-grid");
+      recentlyWatched.forEach(movie => {
+        const item = createPosterItem(movie);
+        recentContainer.appendChild(item);
+      });
+
+      // Beğenilen yapımları göster
+      const liked = JSON.parse(localStorage.getItem("likedMovies")) || [];
+      const likedContainer = document.querySelector("#liked-productions .production-grid");
+      liked.forEach(movie => {
+        const item = createPosterItem(movie);
+        likedContainer.appendChild(item);
+      });
+
+      // ÖNERİLER: liked + recentlyWatched türlerine göre ama onlarsız
+      const allMovies = JSON.parse(localStorage.getItem("allMovies")) || [];
+      const genreSet = new Set();
+
+      [...liked, ...recentlyWatched].forEach(movie => {
+        if (movie.genre) {
+          movie.genre.split(",").forEach(g => genreSet.add(g.trim().toLowerCase()));
+        }
+      });
+
+      const excludeTitles = new Set([...liked, ...recentlyWatched].map(m => m.title));
+
+      const recommended = allMovies.filter(movie => {
+        const genres = movie.genre?.split(",").map(g => g.trim().toLowerCase()) || [];
+        return genres.some(g => genreSet.has(g)) && !excludeTitles.has(movie.title);
+      });
+
+      const recommendationGrid = document.getElementById("recommendation-grid");
+      recommendationGrid.innerHTML = "";
+      recommended.slice(0, 8).forEach(movie => {
+        const item = createPosterItem(movie);
+        recommendationGrid.appendChild(item);
+      });
+    });
+
+    function createPosterItem(movie) {
+      const item = document.createElement("div");
+      item.classList.add("production-item");
+      item.innerHTML = `
+        <img src="${movie.image}" alt="${movie.title}" />
+        <p>${movie.title}</p>
+      `;
+      item.addEventListener("click", () => {
+        localStorage.setItem("selectedMovie", JSON.stringify(movie));
+        window.location.href = "index.html";
+      });
+      return item;
+    }
+
+    function openModal() {
+      document.getElementById("editModal").style.display = "block";
+      document.getElementById("editName").value = localStorage.getItem("user_name") || "";
+      document.getElementById("editEmail").value = localStorage.getItem("user_email") || "";
+    }
+
+    function closeModal() {
+      document.getElementById("editModal").style.display = "none";
+    }
+
+    function saveProfile() {
+      const newName = document.getElementById("editName").value;
+      const newEmail = document.getElementById("editEmail").value;
+      if (newName && newEmail) {
+        localStorage.setItem("user_name", newName);
+        localStorage.setItem("user_email", newEmail);
+        document.getElementById("user-full-name").innerText = newName;
+        document.querySelector(".username").innerText = "@" + newEmail.split("@")[0];
+        closeModal();
+      } else {
+        alert("Please fill in both fields.");
+      }
+    }
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ViewFinder - Movie Details</title>
+    <link rel="stylesheet" href="index.css"/>
+</head>
+<body>
+
+<header class="main-header">
+    <div class="nav-links">
+        <a href="homePage.html" class="nav-link">🏠 Home</a>
+        <a href="profile page.html" class="nav-link">👤 Profile</a>
+    </div>
+</header>
+
+<a id="backArrow" href="#" class="back-arrow">← Back</a>
+
+<main class="movie-detail-container">
+    <div class="poster-container">
+        <img id="moviePoster" src="" alt="Movie Poster"/>
+    </div>
+    <div class="info-container">
+        <h2 id="movieTitle">Movie Title</h2>
+        <p><strong>Director:</strong> <span id="movieDirector"></span></p>
+        <p><strong>Cast:</strong> <span id="movieCast"></span></p>
+        <p><strong>Genre:</strong> <span id="movieGenre"></span></p>
+        <p><strong>Plot:</strong></p>
+        <p id="moviePlot">Loading plot...</p>
+        <p><strong>Rating:</strong> ★★★★☆</p>
+
+        <div class="actions">
+            <button onclick="likeMovie()">❤️ Like</button>
+            <button onclick="saveMovie()">💾 Save</button>
+            <button onclick="shareMovie()">🔗 Share</button>
+        </div>
+
+        <div class="comment-section">
+            <h3>Comments</h3>
+            <textarea id="commentInput" placeholder="Leave a comment!"></textarea>
+            <button onclick="submitComment()">Submit</button>
+            <ul id="commentList"></ul>
+        </div>
+    </div>
+</main>
+
+<script>
+    const data = JSON.parse(localStorage.getItem("selectedMovie"));
+    const username = localStorage.getItem("user_name") || "anonymous";
+
+    if (data) {
+      document.getElementById("movieTitle").innerText = data.title || "";
+      document.getElementById("moviePoster").src = data.image || "";
+      document.getElementById("movieDirector").innerText = data.director || "";
+      document.getElementById("movieCast").innerText = data.cast || "";
+      document.getElementById("movieGenre").innerText = data.genre || "";
+      document.getElementById("moviePlot").innerText = data.plot || "Plot not available.";
+      loadComments(data.title);
+      
+      // Add to recently watched
+      addToRecentlyWatched(data);
+    }
+
+    function addToRecentlyWatched(movie) {
+      if (!movie) return;
+      
+      let recentlyWatched = JSON.parse(localStorage.getItem("recentlyWatched")) || [];
+      
+      // Remove if already exists (to move it to the front)
+      recentlyWatched = recentlyWatched.filter(m => m.title !== movie.title);
+      
+      // Add to the beginning of the array
+      recentlyWatched.unshift(movie);
+      
+      // Keep only the last 10 items
+      if (recentlyWatched.length > 10) {
+        recentlyWatched = recentlyWatched.slice(0, 10);
+      }
+      
+      localStorage.setItem("recentlyWatched", JSON.stringify(recentlyWatched));
+    }
+
+    function likeMovie() {
+      if (!data) return;
+      let liked = JSON.parse(localStorage.getItem("likedMovies")) || [];
+      if (!liked.some(m => m.title === data.title)) {
+        liked.push(data);
+        localStorage.setItem("likedMovies", JSON.stringify(liked));
+        alert("Movie liked!");
+      } else {
+        alert("Already liked.");
+      }
+    }
+
+    function saveMovie() {
+      if (!data) return;
+      let saved = JSON.parse(localStorage.getItem("savedMovies")) || [];
+      if (!saved.some(m => m.title === data.title)) {
+        saved.push(data);
+        localStorage.setItem("savedMovies", JSON.stringify(saved));
+        alert("Movie saved!");
+      } else {
+        alert("Movie already saved.");
+      }
+    }
+
+    function shareMovie() {
+      if (!data) return;
+      
+      const shareText = `Check out "${data.title}" on ViewFinder!\n\nDirector: ${data.director}\nCast: ${data.cast}\nGenre: ${data.genre}`;
+      
+      if (navigator.share) {
+        navigator.share({
+          title: data.title,
+          text: shareText,
+          url: window.location.href
+        }).catch(err => {
+          console.log('Error sharing:', err);
+          fallbackShare();
+        });
+      } else {
+        fallbackShare();
+      }
+    }
+
+    function fallbackShare() {
+      const tempInput = document.createElement('input');
+      const shareText = `Check out "${data.title}" on ViewFinder!\n\nDirector: ${data.director}\nCast: ${data.cast}\nGenre: ${data.genre}\n\n${window.location.href}`;
+      
+      document.body.appendChild(tempInput);
+      tempInput.value = shareText;
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+      
+      alert('Share info copied to clipboard!');
+    }
+
+    function submitComment() {
+      const input = document.getElementById("commentInput");
+      const text = input.value.trim();
+      if (!text || !data?.title) return;
+
+      const fullComment = `${username}: ${text}`;
+      addCommentToDOM(fullComment);
+
+      const key = `comments_${data.title}`;
+      const stored = JSON.parse(localStorage.getItem(key)) || [];
+      stored.push(fullComment);
+      localStorage.setItem(key, JSON.stringify(stored));
+      input.value = "";
+    }
+
+    function loadComments(title) {
+      const list = document.getElementById("commentList");
+      list.innerHTML = "";
+      const key = `comments_${title}`;
+      const stored = JSON.parse(localStorage.getItem(key)) || [];
+      stored.forEach(comment => addCommentToDOM(comment));
+    }
+
+    function addCommentToDOM(commentText) {
+      const list = document.getElementById("commentList");
+      const li = document.createElement("li");
+      li.textContent = commentText;
+      li.style.position = "relative";
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "❌";
+      deleteBtn.title = "Delete";
+      deleteBtn.style.position = "absolute";
+      deleteBtn.style.right = "10px";
+      deleteBtn.style.top = "4px";
+      deleteBtn.style.border = "none";
+      deleteBtn.style.background = "transparent";
+      deleteBtn.style.cursor = "pointer";
+      deleteBtn.style.display = "none";
+
+      li.addEventListener("mouseenter", () => {
+        deleteBtn.style.display = "inline";
+      });
+      li.addEventListener("mouseleave", () => {
+        deleteBtn.style.display = "none";
+      });
+
+      deleteBtn.addEventListener("click", () => {
+        li.remove();
+        const key = `comments_${data.title}`;
+        const stored = JSON.parse(localStorage.getItem(key)) || [];
+        const updated = stored.filter(c => c !== commentText);
+        localStorage.setItem(key, JSON.stringify(updated));
+      });
+
+      li.appendChild(deleteBtn);
+      list.appendChild(li);
+    }
+
+const backArrow = document.getElementById("backArrow");
+const ref = document.referrer.toLowerCase();
+
+if (ref.includes("profile")) {
+  backArrow.href = "profile page.html";
+} else {
+  backArrow.addEventListener("click", () => {
+    sessionStorage.setItem("fromBackButton", "true");
+  });
+  backArrow.href = "homePage.html";
+}
+</script>
+
+</body>
+</html>
